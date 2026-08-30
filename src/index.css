@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* ============================================================
+   WARD & FALL (ورد وفل) — Design Tokens
+   Direction: palette extracted from the logo's watercolor
+   lavender wreath, with a touch of floral warmth layered in
+   (blush + soft green) rather than a flat single-purple look.
+   ============================================================ */
+
+@theme {
+  /* --- Color: logo-derived violet/lavender, floral accents --- */
+  --color-primary: #5B3A73;          /* deep violet — from the dark logo text/petals */
+  --color-primary-light: #8C6BA8;    /* mid lavender — from the wreath petals */
+  --color-primary-dark: #3A2450;     /* darkest plum — headings, dark-mode primary */
+
+  --color-lavender: #C9AEDD;         /* soft lavender — light petals */
+  --color-lavender-light: #E9DCF2;   /* pale lavender wash — section backgrounds */
+
+  --color-blush: #F3D9E4;            /* floral warmth accent, soft pink */
+  --color-sage: #7C9473;             /* logo's stem green */
+  --color-sage-light: #C7D6BE;
+
+  --color-ink: #2E2036;              /* warm near-black plum, body text (light mode) */
+  --color-gold: #B99A66;             /* small accents: prices, dividers */
+
+  --color-background: #FBF8FC;       /* watercolor-wash white, not stark white */
+  --color-surface: #FFFFFF;
+  --color-muted: #F3ECF7;
+  --color-border: #E4D7EC;
+  --color-text: #2E2036;
+  --color-text-secondary: #5B4A6B;
+  --color-heading: #3A2450;          /* = primary-dark, light-mode headings */
+
+  /* Semantic feedback colors (same in both modes, tuned for contrast) */
+  --color-success: #2E7D4F;
+  --color-error: #B3261E;
+  --color-warning: #A6710A;
+
+  /* Dark mode surfaces + text — an intentional second palette, not an
+     inversion. Headings/prices must NOT use primary-dark (#3A2450) here —
+     that was the readability bug: dark plum text on a dark plum background. */
+  --color-background-dark: #211A28;
+  --color-surface-dark: #2B2233;
+  --color-muted-dark: #362A40;
+  --color-border-dark: #4A3B57;
+  --color-text-dark: #F5EEFA;         /* near-white, body text */
+  --color-text-secondary-dark: #C9B8D9; /* light lavender-grey, muted text */
+  --color-heading-dark: #E9D9F5;      /* light lavender, headings/prices */
+  --color-ink-dark: #F5EEFA;
+
+  --color-success-dark: #6FCF97;
+  --color-error-dark: #F2A29C;
+  --color-warning-dark: #E8C468;
+
+  /* --- Type --- */
+  --font-display: "Fraunces", "Amiri", serif;
+  --font-body: "Work Sans", "Cairo", sans-serif;
+
+  /* --- Radius / shadow --- */
+  --radius-card: 0.5rem;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(46, 32, 54, 0.06), 0 10px 28px -14px rgba(91, 58, 115, 0.28);
+}
+
+html {
+  font-family: var(--font-body);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+html[dir="rtl"] body {
+  font-family: "Cairo", var(--font-body);
+}
+
+.dark {
+  --color-background: var(--color-background-dark);
+  --color-surface: var(--color-surface-dark);
+  --color-muted: var(--color-muted-dark);
+  --color-border: var(--color-border-dark);
+  --color-text: var(--color-text-dark);
+  --color-text-secondary: var(--color-text-secondary-dark);
+  --color-heading: var(--color-heading-dark);
+  --color-ink: var(--color-ink-dark);
+  --color-success: var(--color-success-dark);
+  --color-error: var(--color-error-dark);
+  --color-warning: var(--color-warning-dark);
+
+  /* lavender washes must darken too, or light-lavender text/badges on a
+     still-pale lavender background stays low-contrast in dark mode */
+  --color-lavender-light: #3A2E48;
+  --color-blush: #4A2E3D;
+  --color-gold-light: #4A3E2A;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes navDropIn {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes navLinkIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
