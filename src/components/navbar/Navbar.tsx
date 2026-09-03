@@ -5,8 +5,8 @@ import { useTheme } from "../../context/ThemeContext";
 
 const links = [
   { key: "home", ar: "الرئيسية", en: "Home", href: "#home" },
-  { key: "shop", ar: "المتجر", en: "Shop", href: "#shop" },
   { key: "categories", ar: "الأقسام", en: "Categories", href: "#categories" },
+  { key: "shop", ar: "المتجر", en: "Shop", href: "#shop" },
   { key: "about", ar: "من نحن", en: "About", href: "#about" },
   { key: "contact", ar: "تواصل", en: "Contact", href: "#contact" },
 ];
