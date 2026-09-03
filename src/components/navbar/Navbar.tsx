@@ -12,6 +12,7 @@ const links = [
 ];
 
 const SCROLL_THRESHOLD = 80; // px scrolled before hide/show behavior engages
+const SCROLL_DELTA_MIN = 8; // ignore tiny scroll jitter (trackpads, momentum noise)
 
 export default function Navbar() {
   const { t, toggleLang } = useLanguage();
@@ -20,26 +21,43 @@ export default function Navbar() {
   const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const [mounted, setMounted] = useState(false);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
+  // Let the one-time entrance animation finish before the scroll-driven
+  // transform transition takes over — running both on `transform`
+  // simultaneously is what caused the earlier jank.
+  useEffect(() => {
+    const id = window.setTimeout(() => setMounted(true), 650);
+    return () => window.clearTimeout(id);
+  }, []);
+
   // Hide-on-scroll-down / reveal-on-scroll-up, via rAF + passive listener.
+  // Only reacts once scroll has moved SCROLL_DELTA_MIN px since the last
+  // frame, so tiny/noisy deltas (trackpad momentum, mouse wheel micro-steps)
+  // can't flip the direction back and forth every frame.
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     lastScrollY.current = window.scrollY;
 
     const update = () => {
-      const y = window.scrollY;
+      const y = Math.max(0, window.scrollY);
       setScrolled(y > 12);
 
       if (!reduceMotion) {
-        if (y > SCROLL_THRESHOLD && y > lastScrollY.current) {
-          setHidden(true); // scrolling down past threshold
-        } else if (y < lastScrollY.current) {
-          setHidden(false); // scrolling up
+        const delta = y - lastScrollY.current;
+        if (Math.abs(delta) >= SCROLL_DELTA_MIN) {
+          if (y > SCROLL_THRESHOLD && delta > 0) {
+            setHidden(true); // scrolling down past threshold
+          } else if (delta < 0) {
+            setHidden(false); // scrolling up
+          }
+          lastScrollY.current = y;
         }
+      } else {
+        lastScrollY.current = y;
       }
-      lastScrollY.current = y;
       ticking.current = false;
     };
 
@@ -85,19 +103,26 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-[transform,background-color,box-shadow] duration-300 ease-out motion-safe:animate-[navDropIn_0.6s_ease] ${
-        hidden ? "-translate-y-full" : "translate-y-0"
-      } ${
+      className={`fixed top-0 inset-x-0 z-50 ${mounted ? "" : "motion-safe:animate-[navDropIn_0.6s_cubic-bezier(0.16,1,0.3,1)]"} ${
         scrolled
           ? "bg-[var(--color-surface)]/90 backdrop-blur-md shadow-[var(--shadow-card)] border-b border-[var(--color-border)]"
           : "bg-transparent border-b border-transparent"
       }`}
+      style={{
+        transform: hidden ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, box-shadow 0.3s ease",
+        willChange: "transform",
+      }}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <a href="#home" className="flex items-center gap-2 shrink-0">
-          <img src="/images/logo.jfif" alt="Ward & Fall" className="h-12 w-12 rounded-full object-cover" />
+          <img
+            src="/images/logo.jfif"
+            alt="Ward & Fall"
+            className="h-12 w-12 rounded-full object-cover motion-safe:animate-[logoIn_0.7s_cubic-bezier(0.34,1.56,0.64,1)_backwards]"
+          />
           <span
-            className="text-xl font-semibold"
+            className="text-xl font-semibold motion-safe:animate-[logoTextIn_0.6s_ease_0.15s_backwards]"
             style={{ fontFamily: "var(--font-display)", color: "var(--color-heading)" }}
           >
             {t("ورد وفل", "Ward & Fall")}
