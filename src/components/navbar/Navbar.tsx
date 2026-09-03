@@ -11,53 +11,44 @@ const links = [
   { key: "contact", ar: "تواصل", en: "Contact", href: "#contact" },
 ];
 
-const SCROLL_THRESHOLD = 80; // px scrolled before hide/show behavior engages
-const SCROLL_DELTA_MIN = 8; // ignore tiny scroll jitter (trackpads, momentum noise)
+
+const SCROLLED_BG =
+  "bg-[var(--color-surface)]/90 backdrop-blur-md shadow-[var(--shadow-card)] border-b border-[var(--color-border)]";
+const TRANSPARENT_BG = "bg-transparent border-b border-transparent";
 
 export default function Navbar() {
   const { t, toggleLang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
-  const [scrolled, setScrolled] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [mounted, setMounted] = useState(false);
-  const lastScrollY = useRef(0);
+
+  // Scroll position drives the background/shadow on every animation frame —
+  // far too frequent for React state (it was re-rendering the whole navbar
+  // on every scroll pixel, which caused jank). Mutated directly on the DOM
+  // via a ref instead — React never re-renders for it.
+  const headerRef = useRef<HTMLElement>(null);
+  const wasScrolled = useRef(false);
   const ticking = useRef(false);
 
-  // Let the one-time entrance animation finish before the scroll-driven
-  // transform transition takes over — running both on `transform`
-  // simultaneously is what caused the earlier jank.
   useEffect(() => {
     const id = window.setTimeout(() => setMounted(true), 650);
     return () => window.clearTimeout(id);
   }, []);
 
-  // Hide-on-scroll-down / reveal-on-scroll-up, via rAF + passive listener.
-  // Only reacts once scroll has moved SCROLL_DELTA_MIN px since the last
-  // frame, so tiny/noisy deltas (trackpad momentum, mouse wheel micro-steps)
-  // can't flip the direction back and forth every frame.
+  // Navbar stays fixed and visible at all times — only its background
+  // fades in once the page is scrolled, never hides/slides away.
   useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    lastScrollY.current = window.scrollY;
+    const applyScrolledClass = (scrolled: boolean) => {
+      const el = headerRef.current;
+      if (!el || scrolled === wasScrolled.current) return;
+      wasScrolled.current = scrolled;
+      el.classList.remove(...(scrolled ? TRANSPARENT_BG : SCROLLED_BG).split(" "));
+      el.classList.add(...(scrolled ? SCROLLED_BG : TRANSPARENT_BG).split(" "));
+    };
 
     const update = () => {
-      const y = Math.max(0, window.scrollY);
-      setScrolled(y > 12);
-
-      if (!reduceMotion) {
-        const delta = y - lastScrollY.current;
-        if (Math.abs(delta) >= SCROLL_DELTA_MIN) {
-          if (y > SCROLL_THRESHOLD && delta > 0) {
-            setHidden(true); // scrolling down past threshold
-          } else if (delta < 0) {
-            setHidden(false); // scrolling up
-          }
-          lastScrollY.current = y;
-        }
-      } else {
-        lastScrollY.current = y;
-      }
+      applyScrolledClass(window.scrollY > 12);
       ticking.current = false;
     };
 
@@ -72,7 +63,8 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Active-section highlighting.
+  // Active-section highlighting — changes rarely (on section crossing,
+  // not per scroll pixel), so React state here is cheap and appropriate.
   useEffect(() => {
     const sections = links
       .map((l) => document.querySelector(l.href))
@@ -93,7 +85,6 @@ export default function Navbar() {
     return () => observer.disconnect();
   }, []);
 
-  // Close the mobile drawer whenever the viewport grows back to desktop.
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
     const handler = () => setOpen(false);
@@ -103,15 +94,12 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 ${mounted ? "" : "motion-safe:animate-[navDropIn_0.6s_cubic-bezier(0.16,1,0.3,1)]"} ${
-        scrolled
-          ? "bg-[var(--color-surface)]/90 backdrop-blur-md shadow-[var(--shadow-card)] border-b border-[var(--color-border)]"
-          : "bg-transparent border-b border-transparent"
+      ref={headerRef}
+      className={`fixed top-0 inset-x-0 z-50 ${TRANSPARENT_BG} ${
+        mounted ? "" : "motion-safe:animate-[navDropIn_0.6s_cubic-bezier(0.16,1,0.3,1)]"
       }`}
       style={{
-        transform: hidden ? "translateY(-100%)" : "translateY(0)",
-        transition: "transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, box-shadow 0.3s ease",
-        willChange: "transform",
+        transition: "background-color 0.3s ease, box-shadow 0.3s ease",
       }}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
@@ -140,7 +128,7 @@ export default function Navbar() {
               >
                 <a
                   href={l.href}
-                  className="relative text-sm font-medium py-1 transition-colors hover:-translate-y-0.5 inline-block transition-transform"
+                  className="relative text-sm font-medium py-1 inline-block transition-[color,transform] duration-200 hover:-translate-y-0.5"
                   style={{ color: isActive ? "var(--color-primary)" : "var(--color-text)", opacity: isActive ? 1 : 0.8 }}
                 >
                   {t(l.ar, l.en)}
