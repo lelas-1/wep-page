@@ -1,19 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Search, Pencil, Trash2, Eye, PackageX, AlertCircle } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { productService } from "../../services/productService";
+import type { ProductInput } from "../../services/productService";
 import { categoryService } from "../../services/categoryService";
 import type { Product, Category } from "../../types/admin";
 import Badge from "../../components/admin/ui/Badge";
 import EmptyState from "../../components/admin/ui/EmptyState";
+import Select from "../../components/admin/ui/Select";
+import Switch from "../../components/admin/ui/Switch";
+import Dialog from "../../components/admin/ui/Dialog";
+import DialogHeader from "../../components/admin/ui/DialogHeader";
+import DialogBody from "../../components/admin/ui/DialogBody";
+import ProductForm from "../../components/admin/products/ProductForm";
+import { usePageSearch } from "../../context/AdminSearchContext";
 
 export default function Products() {
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = usePageSearch(t("ابحث بالاسم، SKU، أو الرابط...", "Search by name, SKU, or slug..."));
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [featuredFilter, setFeaturedFilter] = useState<"all" | "featured" | "not_featured">("all");
@@ -21,6 +29,77 @@ export default function Products() {
   const LOW_STOCK_THRESHOLD = 5;
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addDirty, setAddDirty] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  // Dashboard's "Add New Product" quick action navigates here with this
+  // flag instead of a separate /admin/products/new page, so it opens the
+  // same modal used by the in-page "Add Product" button (no duplicate
+  // add-product implementation). Cleared immediately via `replace` so
+  // browser back/forward doesn't reopen it.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if ((location.state as { openAdd?: boolean } | null)?.openAdd) {
+      setAddOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const requestCloseAdd = () => {
+    if (
+      addDirty &&
+      !window.confirm(t("لديك بيانات غير محفوظة، هل تريدين إغلاق النموذج؟", "You have unsaved changes. Close anyway?"))
+    ) {
+      return;
+    }
+    setAddOpen(false);
+    setAddDirty(false);
+    setAddError(null);
+  };
+
+  const handleAddSubmit = async (values: ProductInput) => {
+    setAddError(null);
+    try {
+      await productService.create(values);
+      setAddOpen(false);
+      setAddDirty(false);
+      load();
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : t("فشل حفظ المنتج", "Failed to save product"));
+    }
+  };
+
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [editDirty, setEditDirty] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const requestCloseEdit = () => {
+    if (
+      editDirty &&
+      !window.confirm(t("لديك بيانات غير محفوظة، هل تريدين إغلاق النموذج؟", "You have unsaved changes. Close anyway?"))
+    ) {
+      return;
+    }
+    setEditProduct(null);
+    setEditDirty(false);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (values: ProductInput) => {
+    if (!editProduct) return;
+    setEditError(null);
+    try {
+      await productService.update(editProduct.id, values);
+      setEditProduct(null);
+      setEditDirty(false);
+      load();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : t("فشل حفظ التعديلات", "Failed to save changes"));
+    }
+  };
 
   const load = () => {
     setError(null);
@@ -69,20 +148,25 @@ export default function Products() {
 
   const toggleActive = async (p: Product) => {
     setActionError(null);
+    // Optimistic update: flip the UI instantly, then sync with Supabase in
+    // the background. Waiting for a full reload() after every toggle (two
+    // network round-trips) was the cause of the sluggish response.
+    setProducts((prev) => prev?.map((row) => (row.id === p.id ? { ...row, active: !p.active } : row)) ?? prev);
     try {
       await productService.update(p.id, { active: !p.active });
-      load();
     } catch (err) {
+      setProducts((prev) => prev?.map((row) => (row.id === p.id ? { ...row, active: p.active } : row)) ?? prev);
       setActionError(err instanceof Error ? err.message : "Update failed");
     }
   };
 
   const toggleFeatured = async (p: Product) => {
     setActionError(null);
+    setProducts((prev) => prev?.map((row) => (row.id === p.id ? { ...row, featured: !p.featured } : row)) ?? prev);
     try {
       await productService.update(p.id, { featured: !p.featured });
-      load();
     } catch (err) {
+      setProducts((prev) => prev?.map((row) => (row.id === p.id ? { ...row, featured: p.featured } : row)) ?? prev);
       setActionError(err instanceof Error ? err.message : "Update failed");
     }
   };
@@ -131,7 +215,7 @@ export default function Products() {
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div className="flex flex-1 gap-3 flex-col sm:flex-row">
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-sm md:hidden">
             <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3" style={{ color: "var(--color-text-secondary)" }} />
             <input
               value={search}
@@ -140,46 +224,50 @@ export default function Products() {
               className="w-full ps-9 pe-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
           </div>
-          <select
+          <Select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)]"
-          >
-            <option value="all">{t("كل الأقسام", "All Categories")}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {t(c.nameAr || c.name, c.name)}
-              </option>
-            ))}
-          </select>
-          <select
+            onChange={setCategoryFilter}
+            className="w-full sm:w-44 shrink-0"
+            aria-label={t("فلترة حسب القسم", "Filter by category")}
+            options={[
+              { value: "all", label: t("كل الأقسام", "All Categories") },
+              ...categories.map((c) => ({ value: c.id, label: t(c.nameAr || c.name, c.name) })),
+            ]}
+          />
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="px-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)]"
-          >
-            <option value="all">{t("كل الحالات", "All Statuses")}</option>
-            <option value="active">{t("نشط", "Active")}</option>
-            <option value="inactive">{t("غير نشط", "Inactive")}</option>
-          </select>
-          <select
+            onChange={setStatusFilter}
+            className="w-full sm:w-40 shrink-0"
+            aria-label={t("فلترة حسب الحالة", "Filter by status")}
+            options={[
+              { value: "all", label: t("كل الحالات", "All Statuses") },
+              { value: "active", label: t("نشط", "Active") },
+              { value: "inactive", label: t("غير نشط", "Inactive") },
+            ]}
+          />
+          <Select
             value={featuredFilter}
-            onChange={(e) => setFeaturedFilter(e.target.value as typeof featuredFilter)}
-            className="px-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)]"
-          >
-            <option value="all">{t("كل المنتجات", "All Products")}</option>
-            <option value="featured">{t("مميز", "Featured")}</option>
-            <option value="not_featured">{t("غير مميز", "Not Featured")}</option>
-          </select>
-          <select
+            onChange={setFeaturedFilter}
+            className="w-full sm:w-44 shrink-0"
+            aria-label={t("فلترة حسب التمييز", "Filter by featured")}
+            options={[
+              { value: "all", label: t("كل المنتجات", "All Products") },
+              { value: "featured", label: t("مميز", "Featured") },
+              { value: "not_featured", label: t("غير مميز", "Not Featured") },
+            ]}
+          />
+          <Select
             value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
-            className="px-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)]"
-          >
-            <option value="all">{t("كل المخزون", "All Stock")}</option>
-            <option value="in_stock">{t("متوفر", "In Stock")}</option>
-            <option value="low_stock">{t("منخفض", "Low Stock")}</option>
-            <option value="out_of_stock">{t("نفذ", "Out of Stock")}</option>
-          </select>
+            onChange={setStockFilter}
+            className="w-full sm:w-40 shrink-0"
+            aria-label={t("فلترة حسب المخزون", "Filter by stock")}
+            options={[
+              { value: "all", label: t("كل المخزون", "All Stock") },
+              { value: "in_stock", label: t("متوفر", "In Stock") },
+              { value: "low_stock", label: t("منخفض", "Low Stock") },
+              { value: "out_of_stock", label: t("نفذ", "Out of Stock") },
+            ]}
+          />
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
@@ -189,14 +277,15 @@ export default function Products() {
             </button>
           )}
         </div>
-        <Link
-          to="/admin/products/new"
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-card)] text-sm font-medium shrink-0"
           style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
         >
           <Plus size={16} />
           {t("إضافة منتج", "Add Product")}
-        </Link>
+        </button>
       </div>
 
       <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden" style={{ background: "var(--color-surface)" }}>
@@ -259,20 +348,26 @@ export default function Products() {
                       {p.stockQuantity === 0 ? <Badge tone="error">{t("نفذ", "Out")}</Badge> : p.stockQuantity}
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => toggleFeatured(p)}>
-                        <Badge tone={p.featured ? "warning" : "neutral"}>{p.featured ? t("نعم", "Yes") : t("لا", "No")}</Badge>
-                      </button>
+                      <Switch
+                        checked={p.featured}
+                        onChange={() => toggleFeatured(p)}
+                        label={p.featured ? t("نعم", "Yes") : t("لا", "No")}
+                        ariaLabel={t(`تبديل تمييز ${p.nameAr || p.name}`, `Toggle featured for ${p.name}`)}
+                      />
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => toggleActive(p)}>
-                        <Badge tone={p.active ? "success" : "neutral"}>{p.active ? t("نشط", "Active") : t("غير نشط", "Inactive")}</Badge>
-                      </button>
+                      <Switch
+                        checked={p.active}
+                        onChange={() => toggleActive(p)}
+                        label={p.active ? t("نشط", "Active") : t("غير نشط", "Inactive")}
+                        ariaLabel={t(`تبديل حالة ${p.nameAr || p.name}`, `Toggle status for ${p.name}`)}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <Link to={`/admin/products/${p.id}/edit`} className="p-1.5 rounded hover:bg-[var(--color-muted)]" aria-label={t("تعديل", "Edit")}>
+                        <button type="button" onClick={() => setEditProduct(p)} className="p-1.5 rounded hover:bg-[var(--color-muted)]" aria-label={t("تعديل", "Edit")}>
                           <Pencil size={15} />
-                        </Link>
+                        </button>
                         <a href="/" className="p-1.5 rounded hover:bg-[var(--color-muted)]" aria-label={t("عرض", "View")}>
                           <Eye size={15} />
                         </a>
@@ -301,14 +396,25 @@ export default function Products() {
                     <p className="text-xs mb-2" style={{ color: "var(--color-text-secondary)" }}>
                       {categoryName(p.categoryId)} · {p.currency} {p.salePrice ?? p.price}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <Badge tone={p.active ? "success" : "neutral"}>{p.active ? t("نشط", "Active") : t("غير نشط", "Inactive")}</Badge>
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <Switch
+                        checked={p.active}
+                        onChange={() => toggleActive(p)}
+                        label={p.active ? t("نشط", "Active") : t("غير نشط", "Inactive")}
+                        ariaLabel={t(`تبديل حالة ${p.nameAr || p.name}`, `Toggle status for ${p.name}`)}
+                      />
+                      <Switch
+                        checked={p.featured}
+                        onChange={() => toggleFeatured(p)}
+                        label={t("مميز", "Featured")}
+                        ariaLabel={t(`تبديل تمييز ${p.nameAr || p.name}`, `Toggle featured for ${p.name}`)}
+                      />
                       {p.stockQuantity === 0 && <Badge tone="error">{t("نفذ", "Out of stock")}</Badge>}
                     </div>
                     <div className="flex items-center gap-3">
-                      <Link to={`/admin/products/${p.id}/edit`} className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--color-primary)" }}>
+                      <button type="button" onClick={() => setEditProduct(p)} className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--color-primary)" }}>
                         <Pencil size={13} /> {t("تعديل", "Edit")}
-                      </Link>
+                      </button>
                       <button onClick={() => setConfirmDelete(p)} className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--color-error)" }}>
                         <Trash2 size={13} /> {t("حذف", "Delete")}
                       </button>
@@ -348,6 +454,64 @@ export default function Products() {
           </div>
         </div>
       )}
+
+      <Dialog open={addOpen} onClose={requestCloseAdd} titleId="add-product-title">
+        <DialogHeader
+          titleId="add-product-title"
+          title={t("إضافة منتج", "Add Product")}
+          onClose={requestCloseAdd}
+          closeLabel={t("إغلاق", "Close")}
+        />
+        <DialogBody>
+          {addError && (
+            <div
+              className="mb-4 p-3 rounded-[var(--radius-card)] border text-sm"
+              style={{ borderColor: "var(--color-error)", color: "var(--color-error)", background: "var(--color-surface)" }}
+            >
+              {addError}
+            </div>
+          )}
+          <ProductForm
+            onSubmit={handleAddSubmit}
+            submitLabel={t("إضافة المنتج", "Add Product")}
+            onCancel={requestCloseAdd}
+            cancelLabel={t("إلغاء", "Cancel")}
+            onDirtyChange={setAddDirty}
+            stickyFooter
+          />
+        </DialogBody>
+      </Dialog>
+
+      <Dialog open={editProduct !== null} onClose={requestCloseEdit} titleId="edit-product-title">
+        <DialogHeader
+          titleId="edit-product-title"
+          title={t("تعديل المنتج", "Edit Product")}
+          onClose={requestCloseEdit}
+          closeLabel={t("إغلاق", "Close")}
+        />
+        <DialogBody>
+          {editError && (
+            <div
+              className="mb-4 p-3 rounded-[var(--radius-card)] border text-sm"
+              style={{ borderColor: "var(--color-error)", color: "var(--color-error)", background: "var(--color-surface)" }}
+            >
+              {editError}
+            </div>
+          )}
+          {editProduct && (
+            <ProductForm
+              key={editProduct.id}
+              initialValues={editProduct}
+              onSubmit={handleEditSubmit}
+              submitLabel={t("حفظ التعديلات", "Save Changes")}
+              onCancel={requestCloseEdit}
+              cancelLabel={t("إلغاء", "Cancel")}
+              onDirtyChange={setEditDirty}
+              stickyFooter
+            />
+          )}
+        </DialogBody>
+      </Dialog>
     </div>
   );
 }

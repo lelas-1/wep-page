@@ -26,10 +26,23 @@ export default function ProductForm({
   initialValues,
   onSubmit,
   submitLabel,
+  onCancel,
+  cancelLabel,
+  onDirtyChange,
+  stickyFooter = false,
 }: {
   initialValues?: Product;
   onSubmit: (values: ProductInput) => Promise<void>;
   submitLabel: string;
+  /** When provided, renders a Cancel button next to Submit (used inside modals). */
+  onCancel?: () => void;
+  cancelLabel?: string;
+  /** Fires once the user changes any field, so a host (e.g. a modal) can
+   * warn before discarding unsaved input. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Keeps the submit/cancel row pinned to the bottom of its scroll
+   * container — used when the form lives inside a fixed-height dialog. */
+  stickyFooter?: boolean;
 }) {
   const { t } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -63,8 +76,10 @@ export default function ProductForm({
     categoryService.list().then(setCategories);
   }, []);
 
-  const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) =>
+  const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
+    onDirtyChange?.(true);
+  };
 
   const validate = () => {
     const next: Record<string, string> = {};
@@ -261,10 +276,24 @@ export default function ProductForm({
         <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
       </section>
 
-      <div className="flex gap-3">
+      <div
+        className={`flex gap-3 ${stickyFooter ? "sticky bottom-0 -mx-5 sm:-mx-6 px-5 sm:px-6 py-4 border-t" : ""}`}
+        style={stickyFooter ? { background: "var(--color-surface)", borderColor: "var(--color-border)" } : undefined}
+      >
         <button type="submit" disabled={submitting || uploading} className="px-6 py-2.5 rounded-[var(--radius-card)] text-sm font-medium disabled:opacity-60" style={{ background: "var(--color-primary)", color: "var(--color-background)" }}>
           {submitting ? t("جارِ الحفظ...", "Saving...") : submitLabel}
         </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="px-6 py-2.5 rounded-[var(--radius-card)] text-sm font-medium border disabled:opacity-60"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+          >
+            {cancelLabel}
+          </button>
+        )}
       </div>
     </form>
   );

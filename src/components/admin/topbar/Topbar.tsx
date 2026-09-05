@@ -1,10 +1,12 @@
 import { Menu, Search, Sun, Moon, Bell, Languages } from "lucide-react";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAdminSearch } from "../../../context/AdminSearchContext";
 
 export default function Topbar({ title, onMenuClick }: { title: string; onMenuClick: () => void }) {
   const { t, toggleLang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
+  const { query, setQuery, placeholder } = useAdminSearch();
 
   return (
     <header
@@ -19,16 +21,20 @@ export default function Topbar({ title, onMenuClick }: { title: string; onMenuCl
         {title}
       </h1>
 
-      <div className="hidden md:flex items-center flex-1 max-w-sm ms-4">
-        <div className="relative w-full">
-          <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3" style={{ color: "var(--color-text-secondary)" }} />
-          <input
-            type="search"
-            placeholder={t("بحث...", "Search...")}
-            className="w-full ps-9 pe-3 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-background)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-          />
+      {placeholder && (
+        <div className="hidden md:flex items-center flex-1 max-w-sm ms-4">
+          <div className="relative w-full">
+            <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3" style={{ color: "var(--color-text-secondary)" }} />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={placeholder}
+              className="w-full ps-9 pe-3 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-background)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-1.5 ms-auto">
         <button

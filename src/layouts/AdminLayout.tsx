@@ -4,6 +4,7 @@ import Sidebar from "../components/admin/sidebar/Sidebar";
 import Topbar from "../components/admin/topbar/Topbar";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
+import { AdminSearchProvider } from "../context/AdminSearchContext";
 
 const titles: Record<string, { ar: string; en: string }> = {
   "/admin": { ar: "لوحة التحكم", en: "Dashboard" },
@@ -41,14 +42,16 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--color-background)", color: "var(--color-text)" }}>
-      <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar title={title} onMenuClick={() => setDrawerOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6">
-          <Outlet />
-        </main>
+    <AdminSearchProvider>
+      <div className="min-h-screen flex" style={{ background: "var(--color-background)", color: "var(--color-text)" }}>
+        <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Topbar title={title} onMenuClick={() => setDrawerOpen(true)} />
+          <main className="flex-1 p-4 sm:p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminSearchProvider>
   );
 }

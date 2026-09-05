@@ -103,7 +103,8 @@ export default function Dashboard() {
           </h2>
           <div className="flex flex-col gap-2">
             <Link
-              to="/admin/products/new"
+              to="/admin/products"
+              state={{ openAdd: true }}
               className="flex items-center gap-2 px-3 py-2.5 rounded-[var(--radius-card)] text-sm font-medium transition-colors"
               style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
             >
