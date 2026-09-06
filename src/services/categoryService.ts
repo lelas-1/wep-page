@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { createListCache } from "../lib/cache";
 import type { Category } from "../types/admin";
 import type { Database } from "../types/database";
 
@@ -37,6 +38,12 @@ export interface CategoryInput {
   active: boolean;
 }
 
+const categoriesCache = createListCache<Category>(async () => {
+  const { data, error } = await supabase.from("categories").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToCategory);
+});
+
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = slugify(base) || "category";
   let candidate = root;
@@ -54,11 +61,8 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
 
 export const categoryService = {
   async list(filters?: { activeOnly?: boolean }): Promise<Category[]> {
-    let query = supabase.from("categories").select("*").order("name", { ascending: true });
-    if (filters?.activeOnly) query = query.eq("active", true);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []).map(rowToCategory);
+    const rows = await categoriesCache.get();
+    return filters?.activeOnly ? rows.filter((r) => r.active) : rows;
   },
 
   async create(input: CategoryInput): Promise<Category> {
@@ -73,6 +77,7 @@ export const categoryService = {
     };
     const { data, error } = await supabase.from("categories").insert(insert).select("*").single();
     if (error) throw error;
+    categoriesCache.invalidate();
     return rowToCategory(data);
   },
 
@@ -89,11 +94,13 @@ export const categoryService = {
 
     const { data, error } = await supabase.from("categories").update(patch).eq("id", id).select("*").single();
     if (error) throw error;
+    categoriesCache.invalidate();
     return rowToCategory(data);
   },
 
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) throw error;
+    categoriesCache.invalidate();
   },
 };

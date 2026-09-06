@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Menu, X, Sun, Moon, Languages } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
+import { scrollToSection } from "../../utils/scrollToSection";
 
 const links = [
   { key: "home", ar: "الرئيسية", en: "Home", href: "#home" },
@@ -103,7 +104,14 @@ export default function Navbar() {
       }}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
-        <a href="#home" className="flex items-center gap-2 shrink-0">
+        <a
+          href="#home"
+          onClick={(e) => {
+            e.preventDefault();
+            scrollToSection("#home");
+          }}
+          className="flex items-center gap-2 shrink-0"
+        >
           <img
             src="/images/logo.jfif"
             alt="Ward & Fall"
@@ -128,6 +136,10 @@ export default function Navbar() {
               >
                 <a
                   href={l.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToSection(l.href);
+                  }}
                   className="relative text-sm font-medium py-1 inline-block transition-[color,transform] duration-200 hover:-translate-y-0.5"
                   style={{ color: isActive ? "var(--color-primary)" : "var(--color-text)", opacity: isActive ? 1 : 0.8 }}
                 >
@@ -163,6 +175,10 @@ export default function Navbar() {
           </button>
           <a
             href="#shop"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollToSection("#shop");
+            }}
             className="px-5 py-2.5 rounded-[var(--radius-card)] text-sm font-medium text-[var(--color-background)] bg-[var(--color-primary)] hover:bg-[var(--color-heading)] transition-colors"
           >
             {t("تسوقي الآن", "Shop Flowers")}
@@ -190,7 +206,11 @@ export default function Navbar() {
               <a
                 key={l.key}
                 href={l.href}
-                onClick={() => setOpen(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setOpen(false);
+                  scrollToSection(l.href);
+                }}
                 className="text-sm font-medium"
                 style={{ color: activeSection === l.key ? "var(--color-primary)" : "var(--color-text)" }}
               >

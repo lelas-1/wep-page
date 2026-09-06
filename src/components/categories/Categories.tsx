@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Flower } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { categoryService } from "../../services/categoryService";
+import { scrollToSection } from "../../utils/scrollToSection";
 import type { Category } from "../../types/admin";
 
 export default function Categories() {
@@ -38,6 +39,10 @@ export default function Categories() {
               <a
                 key={cat.id}
                 href="#shop"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection("#shop");
+                }}
                 className="group flex flex-col items-center gap-3 p-5 rounded-[var(--radius-card)] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
               >
                 <span className="w-14 h-14 rounded-full flex items-center justify-center transition-colors" style={{ background: "var(--color-lavender-light)" }}>

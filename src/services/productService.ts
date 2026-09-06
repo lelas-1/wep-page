@@ -4,8 +4,14 @@
  * Connected project: aspqohlunqyjvgduqwrm (see .env.local).
  * Table: public.products. RLS: public can read active=true rows;
  * writes require an authenticated session (see src/services/authService.ts).
+ *
+ * Reads go through a shared in-memory cache (see src/lib/cache.ts) — the
+ * table is fetched once and reused across every page/component until a
+ * write invalidates it, instead of every consumer independently re-fetching
+ * the whole table.
  */
 import { supabase } from "../lib/supabase";
+import { createListCache } from "../lib/cache";
 import type { Product } from "../types/admin";
 import type { Database } from "../types/database";
 
@@ -60,6 +66,12 @@ export interface ProductInput {
   active: boolean;
 }
 
+const productsCache = createListCache<Product>(async () => {
+  const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToProduct);
+});
+
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = slugify(base) || "product";
   let candidate = root;
@@ -78,17 +90,20 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
 
 export const productService = {
   async list(filters?: { activeOnly?: boolean }): Promise<Product[]> {
-    let query = supabase.from("products").select("*").order("created_at", { ascending: false });
-    if (filters?.activeOnly) query = query.eq("active", true);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []).map(rowToProduct);
+    const rows = await productsCache.get();
+    return filters?.activeOnly ? rows.filter((r) => r.active) : rows;
   },
 
   async get(id: string): Promise<Product | undefined> {
-    const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
-    if (error) throw error;
-    return data ? rowToProduct(data) : undefined;
+    const rows = await productsCache.get();
+    return rows.find((r) => r.id === id);
+  },
+
+  /** Public storefront product detail lookup — only ever returns active
+   * products, so an inactive product's URL 404s instead of leaking data. */
+  async getBySlug(slug: string): Promise<Product | undefined> {
+    const rows = await productsCache.get();
+    return rows.find((r) => r.slug === slug && r.active);
   },
 
   async create(input: ProductInput): Promise<Product> {
@@ -111,6 +126,7 @@ export const productService = {
     };
     const { data, error } = await supabase.from("products").insert(insert).select("*").single();
     if (error) throw error;
+    productsCache.invalidate();
     return rowToProduct(data);
   },
 
@@ -135,12 +151,14 @@ export const productService = {
 
     const { data, error } = await supabase.from("products").update(patch).eq("id", id).select("*").single();
     if (error) throw error;
+    productsCache.invalidate();
     return rowToProduct(data);
   },
 
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (error) throw error;
+    productsCache.invalidate();
   },
 };
 

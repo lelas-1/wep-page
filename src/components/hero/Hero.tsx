@@ -1,6 +1,7 @@
 import { useLanguage } from "../../context/LanguageContext";
 import { useSettings } from "../../context/SettingsContext";
 import { createWhatsAppGeneralLink } from "../../utils/whatsapp";
+import { scrollToSection } from "../../utils/scrollToSection";
 
 export default function Hero() {
   const { t, lang } = useLanguage();
@@ -50,6 +51,10 @@ export default function Hero() {
           <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
             <a
               href="#shop"
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToSection("#shop");
+              }}
               className="px-7 py-3.5 rounded-[var(--radius-card)] font-medium text-[var(--color-background)] transition-transform hover:-translate-y-0.5"
               style={{ background: "var(--color-primary)" }}
             >

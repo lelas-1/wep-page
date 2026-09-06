@@ -10,9 +10,9 @@ import Badge from "../../components/admin/ui/Badge";
 import EmptyState from "../../components/admin/ui/EmptyState";
 import Select from "../../components/admin/ui/Select";
 import Switch from "../../components/admin/ui/Switch";
-import Dialog from "../../components/admin/ui/Dialog";
-import DialogHeader from "../../components/admin/ui/DialogHeader";
-import DialogBody from "../../components/admin/ui/DialogBody";
+import Dialog from "../../components/ui/Dialog";
+import DialogHeader from "../../components/ui/DialogHeader";
+import DialogBody from "../../components/ui/DialogBody";
 import ProductForm from "../../components/admin/products/ProductForm";
 import { usePageSearch } from "../../context/AdminSearchContext";
 

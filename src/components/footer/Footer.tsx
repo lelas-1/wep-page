@@ -2,6 +2,14 @@ import { MessageCircle, Share2 } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { useSettings } from "../../context/SettingsContext";
 import { createWhatsAppGeneralLink } from "../../utils/whatsapp";
+import { scrollToSection } from "../../utils/scrollToSection";
+
+const quickLinks = [
+  { href: "#shop", ar: "المتجر", en: "Shop" },
+  { href: "#categories", ar: "الأقسام", en: "Categories" },
+  { href: "#about", ar: "من نحن", en: "About" },
+  { href: "#contact", ar: "تواصل", en: "Contact" },
+];
 
 export default function Footer() {
   const { t, lang } = useLanguage();
@@ -24,11 +32,21 @@ export default function Footer() {
 
         <div>
           <h4 className="text-sm font-semibold text-white mb-3">{t("روابط سريعة", "Quick Links")}</h4>
-          <ul className="space-y-2 text-sm opacity-80">
-            <li><a href="#shop">{t("المتجر", "Shop")}</a></li>
-            <li><a href="#categories">{t("الأقسام", "Categories")}</a></li>
-            <li><a href="#about">{t("من نحن", "About")}</a></li>
-            <li><a href="#contact">{t("تواصل", "Contact")}</a></li>
+          <ul className="space-y-2 text-sm">
+            {quickLinks.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToSection(link.href);
+                  }}
+                  className="inline-block opacity-80 transition-all duration-200 hover:opacity-100 rtl:hover:-translate-x-1 ltr:hover:translate-x-1"
+                >
+                  {t(link.ar, link.en)}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
 

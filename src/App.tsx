@@ -4,6 +4,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import Home from "./pages/Home";
+import ProductDetails from "./pages/ProductDetails";
 import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -24,6 +25,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/product/:slug" element={<ProductDetails />} />
               <Route path="/admin/login" element={<Login />} />
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Dashboard />} />

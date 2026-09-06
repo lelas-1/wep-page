@@ -2,11 +2,13 @@ import { MessageCircle } from "lucide-react";
 import type { Product } from "../../types/admin";
 import { useLanguage } from "../../context/LanguageContext";
 import { useSettings } from "../../context/SettingsContext";
+import { useProductModal } from "../../context/ProductModalContext";
 import { createWhatsAppOrderLink } from "../../utils/whatsapp";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { t, lang } = useLanguage();
   const { settings } = useSettings();
+  const { open } = useProductModal();
 
   return (
     <article className="group rounded-[var(--radius-card)] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-card)] overflow-hidden flex flex-col transition-transform hover:-translate-y-1">
@@ -59,6 +61,8 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="flex gap-2 mt-3">
           <button
+            type="button"
+            onClick={() => open(product)}
             className="flex-1 text-sm font-medium px-3 py-2.5 rounded-[var(--radius-card)] border transition-colors hover:bg-[var(--color-muted)]"
             style={{ borderColor: "var(--color-border)", color: "var(--color-ink)" }}
           >
