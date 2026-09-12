@@ -70,7 +70,7 @@ const productsCache = createListCache<Product>(async () => {
   const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(rowToProduct);
-});
+}, "wf-cache-products");
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = slugify(base) || "product";

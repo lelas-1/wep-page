@@ -78,7 +78,7 @@ export default function Categories() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-card)] text-sm font-medium" style={{ background: "var(--color-primary)", color: "var(--color-background)" }}>
+        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-card)] text-sm font-medium" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
           <Plus size={16} />
           {t("إضافة قسم", "Add Category")}
         </button>
@@ -124,8 +124,8 @@ export default function Categories() {
             </div>
             {saveError && <p className="text-xs mb-3" style={{ color: "var(--color-error)" }}>{saveError}</p>}
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)]">{t("إلغاء", "Cancel")}</button>
-              <button onClick={save} className="px-4 py-2 rounded-[var(--radius-card)] text-sm font-medium" style={{ background: "var(--color-primary)", color: "var(--color-background)" }}>{t("حفظ", "Save")}</button>
+              <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)]" style={{ color: "var(--color-text)" }}>{t("إلغاء", "Cancel")}</button>
+              <button onClick={save} className="px-4 py-2 rounded-[var(--radius-card)] text-sm font-medium" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>{t("حفظ", "Save")}</button>
             </div>
           </div>
         </div>

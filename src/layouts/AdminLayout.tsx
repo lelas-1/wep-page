@@ -27,17 +27,17 @@ export default function AdminLayout() {
     .find((key) => location.pathname === key || location.pathname.startsWith(key + "/"));
   const title = matchedKey ? t(titles[matchedKey].ar, titles[matchedKey].en) : t("لوحة التحكم", "Dashboard");
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--color-background)" }}>
-        <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-          {t("جارِ التحقق...", "Checking session...")}
-        </p>
-      </div>
-    );
-  }
-
-  if (!session) {
+  // RLS is the real security boundary here (see CLAUDE.md) — the session
+  // check only decides whether to redirect to /admin/login, it never needs
+  // to gate rendering the page itself. Blocking the whole layout (and thus
+  // every child route's own data-fetching effect) behind this check turned
+  // "check session" then "fetch dashboard data" into a sequential waterfall
+  // instead of letting them run in parallel, which is what made the admin
+  // feel slow to load. Supabase's client already restores any existing
+  // session from localStorage synchronously at creation time, so real
+  // requests carry the correct auth header regardless of whether this
+  // React-level check has resolved yet.
+  if (!loading && !session) {
     return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />;
   }
 

@@ -12,6 +12,12 @@
   --color-primary: #5B3A73;          /* deep violet — from the dark logo text/petals */
   --color-primary-light: #8C6BA8;    /* mid lavender — from the wreath petals */
   --color-primary-dark: #3A2450;     /* darkest plum — headings, dark-mode primary */
+  /* Text placed on top of a --color-primary surface (buttons, badges).
+     Fixed white regardless of theme — --color-primary itself doesn't flip
+     between light/dark mode, so its foreground text shouldn't either.
+     Using --color-background here was the bug: --color-background flips to
+     near-black in dark mode, making primary-colored button text vanish. */
+  --color-on-primary: #FFFFFF;
 
   --color-lavender: #C9AEDD;         /* soft lavender — light petals */
   --color-lavender-light: #E9DCF2;   /* pale lavender wash — section backgrounds */
@@ -66,6 +72,16 @@ html {
   font-family: var(--font-body);
   background: var(--color-background);
   color: var(--color-text);
+}
+
+/* Browsers apply a UA-default `color` to <button> (and similar controls)
+   that does NOT inherit from the page the way normal text does — it's why
+   individual buttons kept losing readable text color in dark mode even
+   though the design tokens themselves were correct. This resets every
+   button in the app to properly inherit color like any other element,
+   fixing the whole category at once instead of patching each instance. */
+button {
+  color: inherit;
 }
 
 html[dir="rtl"] body {

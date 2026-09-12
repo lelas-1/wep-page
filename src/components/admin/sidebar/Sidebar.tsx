@@ -59,7 +59,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
             }
             style={({ isActive }) => ({
               background: isActive ? "var(--color-primary)" : "transparent",
-              color: isActive ? "var(--color-background)" : "var(--color-text)",
+              color: isActive ? "var(--color-on-primary)" : "var(--color-text)",
             })}
           >
             <item.icon size={18} />

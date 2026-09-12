@@ -179,7 +179,7 @@ export default function Navbar() {
               e.preventDefault();
               scrollToSection("#shop");
             }}
-            className="px-5 py-2.5 rounded-[var(--radius-card)] text-sm font-medium text-[var(--color-background)] bg-[var(--color-primary)] hover:bg-[var(--color-heading)] transition-colors"
+            className="px-5 py-2.5 rounded-[var(--radius-card)] text-sm font-medium text-[var(--color-on-primary)] bg-[var(--color-primary)] hover:bg-[var(--color-heading)] transition-colors"
           >
             {t("تسوقي الآن", "Shop Flowers")}
           </a>

@@ -1,31 +1,55 @@
 import { useEffect, useState } from "react";
-import { ClipboardList, AlertCircle } from "lucide-react";
+import { ClipboardList, AlertCircle, Plus } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { orderService } from "../../services/orderService";
-import type { Order } from "../../types/admin";
-import Badge from "../../components/admin/ui/Badge";
+import type { OrderInput } from "../../services/orderService";
+import { productService } from "../../services/productService";
+import type { Order, Product } from "../../types/admin";
 import EmptyState from "../../components/admin/ui/EmptyState";
+import Select from "../../components/admin/ui/Select";
+import Dialog from "../../components/ui/Dialog";
+import DialogHeader from "../../components/ui/DialogHeader";
+import DialogBody from "../../components/ui/DialogBody";
+import AddOrderForm from "../../components/admin/orders/AddOrderForm";
 
-const statusTone: Record<Order["status"], "success" | "error" | "warning" | "neutral"> = {
-  pending: "neutral",
-  confirmed: "warning",
-  preparing: "warning",
-  ready: "success",
-  completed: "success",
-  cancelled: "error",
-};
+const statusOptions: Order["status"][] = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"];
 
 export default function Orders() {
   const { t } = useLanguage();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setError(null);
     orderService
       .list()
       .then(setOrders)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load orders"));
-  }, []);
+  };
+  useEffect(load, []);
+
+  const openAdd = () => {
+    setAddOpen(true);
+    productService.list({ activeOnly: true }).then(setProducts);
+  };
+
+  const handleCreate = async (input: OrderInput) => {
+    await orderService.create(input);
+    setAddOpen(false);
+    load();
+  };
+
+  const changeStatus = async (order: Order, status: Order["status"]) => {
+    setOrders((prev) => prev?.map((o) => (o.id === order.id ? { ...o, status } : o)) ?? prev);
+    try {
+      await orderService.updateStatus(order.id, status);
+    } catch (err) {
+      setOrders((prev) => prev?.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)) ?? prev);
+      setError(err instanceof Error ? err.message : "Failed to update status");
+    }
+  };
 
   if (error) {
     return (
@@ -41,38 +65,70 @@ export default function Orders() {
   }
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden" style={{ background: "var(--color-surface)" }}>
-      {orders.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title={t("لا توجد طلبات مسجّلة", "No orders recorded yet")}
-          description={t(
-            "الطلبات تتم حالياً عبر واتساب مباشرة. جدول orders بقاعدة البيانات جاهز لتسجيلها.",
-            "Orders currently happen directly over WhatsApp. The orders table is live and ready to record them."
-          )}
-        />
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--color-border)]">
-              {[t("رقم الطلب", "Order #"), t("العميل", "Customer"), t("الإجمالي", "Total"), t("الحالة", "Status"), t("التاريخ", "Date")].map((h) => (
-                <th key={h} className="text-start font-medium px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.id} className="border-b border-[var(--color-border)] last:border-0">
-                <td className="px-4 py-3 font-medium" style={{ color: "var(--color-heading)" }}>{o.orderNumber}</td>
-                <td className="px-4 py-3">{o.customerName || "—"}</td>
-                <td className="px-4 py-3">{o.currency} {o.totalAmount}</td>
-                <td className="px-4 py-3"><Badge tone={statusTone[o.status]}>{o.status}</Badge></td>
-                <td className="px-4 py-3">{new Date(o.createdAt).toLocaleDateString()}</td>
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={openAdd}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-card)] text-sm font-medium"
+          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+        >
+          <Plus size={16} />
+          {t("إضافة طلب", "Add Order")}
+        </button>
+      </div>
+
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden" style={{ background: "var(--color-surface)" }}>
+        {orders.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title={t("لا توجد طلبات مسجّلة", "No orders recorded yet")}
+            description={t(
+              "الطلبات تتم عبر واتساب — سجّلي كل طلب هنا لمتابعته وبناء سجل العملاء تلقائياً.",
+              "Orders happen over WhatsApp — log each one here to track it and automatically build your customer list."
+            )}
+          />
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--color-border)]">
+                {[t("رقم الطلب", "Order #"), t("العميل", "Customer"), t("الإجمالي", "Total"), t("الحالة", "Status"), t("التاريخ", "Date")].map((h) => (
+                  <th key={h} className="text-start font-medium px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} className="border-b border-[var(--color-border)] last:border-0">
+                  <td className="px-4 py-3 font-medium" style={{ color: "var(--color-heading)" }}>{o.orderNumber}</td>
+                  <td className="px-4 py-3">
+                    <div>{o.customerName || "—"}</div>
+                    {o.customerPhone && <div className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{o.customerPhone}</div>}
+                  </td>
+                  <td className="px-4 py-3">{o.currency} {o.totalAmount}</td>
+                  <td className="px-4 py-3">
+                    <Select
+                      value={o.status}
+                      onChange={(s) => changeStatus(o, s)}
+                      className="w-36"
+                      aria-label={t("حالة الطلب", "Order status")}
+                      options={statusOptions.map((s) => ({ value: s, label: t(s, s) }))}
+                    />
+                  </td>
+                  <td className="px-4 py-3">{new Date(o.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} titleId="add-order-title">
+        <DialogHeader titleId="add-order-title" title={t("إضافة طلب جديد", "Add New Order")} onClose={() => setAddOpen(false)} closeLabel={t("إغلاق", "Close")} />
+        <DialogBody>
+          <AddOrderForm products={products} onSubmit={handleCreate} onCancel={() => setAddOpen(false)} />
+        </DialogBody>
+      </Dialog>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import Dialog from "../../components/ui/Dialog";
 import DialogHeader from "../../components/ui/DialogHeader";
 import DialogBody from "../../components/ui/DialogBody";
 import ProductForm from "../../components/admin/products/ProductForm";
+import Pagination from "../../components/admin/ui/Pagination";
 import { usePageSearch } from "../../context/AdminSearchContext";
 
 export default function Products() {
@@ -135,6 +136,15 @@ export default function Products() {
     });
   }, [products, search, categoryFilter, statusFilter, featuredFilter, stockFilter]);
 
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  // Derived during render rather than synced via an effect: if a filter
+  // change shrinks the results below the current page, this clamps back
+  // to the last valid page automatically instead of showing an empty page.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   const hasActiveFilters =
     search.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all" || featuredFilter !== "all" || stockFilter !== "all";
 
@@ -144,6 +154,7 @@ export default function Products() {
     setStatusFilter("all");
     setFeaturedFilter("all");
     setStockFilter("all");
+    setPage(1);
   };
 
   const toggleActive = async (p: Product) => {
@@ -219,14 +230,17 @@ export default function Products() {
             <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3" style={{ color: "var(--color-text-secondary)" }} />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder={t("ابحث بالاسم، SKU، أو الرابط...", "Search by name, SKU, or slug...")}
               className="w-full ps-9 pe-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
           </div>
           <Select
             value={categoryFilter}
-            onChange={setCategoryFilter}
+            onChange={(v) => { setCategoryFilter(v); setPage(1); }}
             className="w-full sm:w-44 shrink-0"
             aria-label={t("فلترة حسب القسم", "Filter by category")}
             options={[
@@ -236,7 +250,7 @@ export default function Products() {
           />
           <Select
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(v) => { setStatusFilter(v); setPage(1); }}
             className="w-full sm:w-40 shrink-0"
             aria-label={t("فلترة حسب الحالة", "Filter by status")}
             options={[
@@ -247,7 +261,7 @@ export default function Products() {
           />
           <Select
             value={featuredFilter}
-            onChange={setFeaturedFilter}
+            onChange={(v) => { setFeaturedFilter(v); setPage(1); }}
             className="w-full sm:w-44 shrink-0"
             aria-label={t("فلترة حسب التمييز", "Filter by featured")}
             options={[
@@ -258,7 +272,7 @@ export default function Products() {
           />
           <Select
             value={stockFilter}
-            onChange={setStockFilter}
+            onChange={(v) => { setStockFilter(v); setPage(1); }}
             className="w-full sm:w-40 shrink-0"
             aria-label={t("فلترة حسب المخزون", "Filter by stock")}
             options={[
@@ -272,6 +286,7 @@ export default function Products() {
             <button
               onClick={clearFilters}
               className="px-3 py-2.5 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)] hover:bg-[var(--color-muted)] transition-colors shrink-0"
+              style={{ color: "var(--color-text)" }}
             >
               {t("مسح الفلاتر", "Clear Filters")}
             </button>
@@ -281,7 +296,7 @@ export default function Products() {
           type="button"
           onClick={() => setAddOpen(true)}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-card)] text-sm font-medium shrink-0"
-          style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
+          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           <Plus size={16} />
           {t("إضافة منتج", "Add Product")}
@@ -320,7 +335,7 @@ export default function Products() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => (
+                {pageItems.map((p) => (
                   <tr key={p.id} className="border-b border-[var(--color-border)] last:border-0">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -382,7 +397,7 @@ export default function Products() {
             </table>
 
             <div className="md:hidden divide-y divide-[var(--color-border)]">
-              {filtered.map((p) => (
+              {pageItems.map((p) => (
                 <div key={p.id} className="p-4 flex gap-3">
                   {p.imageUrl ? (
                     <img src={p.imageUrl} alt="" className="w-16 h-16 rounded-[var(--radius-card)] object-cover shrink-0" />
@@ -425,6 +440,14 @@ export default function Products() {
             </div>
           </>
         )}
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          prevLabel={t("السابق", "Previous")}
+          nextLabel={t("التالي", "Next")}
+          pageLabel={(p, total) => t(`صفحة ${p} من ${total}`, `Page ${p} of ${total}`)}
+        />
       </div>
 
       {confirmDelete && (
@@ -440,7 +463,7 @@ export default function Products() {
               )}
             </p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)]">
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-[var(--radius-card)] text-sm border border-[var(--color-border)]" style={{ color: "var(--color-text)" }}>
                 {t("إلغاء", "Cancel")}
               </button>
               <button

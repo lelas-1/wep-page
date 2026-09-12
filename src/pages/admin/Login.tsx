@@ -75,7 +75,7 @@ export default function Login() {
           type="submit"
           disabled={loading}
           className="w-full py-2.5 rounded-[var(--radius-card)] text-sm font-medium disabled:opacity-60"
-          style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
+          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           {loading ? t("جارِ الدخول...", "Signing in...") : t("دخول", "Sign In")}
         </button>

@@ -55,7 +55,7 @@ export default function Hero() {
                 e.preventDefault();
                 scrollToSection("#shop");
               }}
-              className="px-7 py-3.5 rounded-[var(--radius-card)] font-medium text-[var(--color-background)] transition-transform hover:-translate-y-0.5"
+              className="px-7 py-3.5 rounded-[var(--radius-card)] font-medium text-[var(--color-on-primary)] transition-transform hover:-translate-y-0.5"
               style={{ background: "var(--color-primary)" }}
             >
               {t("تسوقي الآن", "Shop Flowers")}

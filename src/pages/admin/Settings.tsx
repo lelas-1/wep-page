@@ -115,7 +115,7 @@ export default function Settings() {
           onClick={handleSave}
           disabled={saving}
           className="mt-4 px-6 py-2.5 rounded-[var(--radius-card)] text-sm font-medium disabled:opacity-60"
-          style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
+          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           {saving ? t("جارِ الحفظ...", "Saving...") : t("حفظ التغييرات", "Save Changes")}
         </button>

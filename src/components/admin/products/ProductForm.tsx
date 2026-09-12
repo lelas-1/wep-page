@@ -5,6 +5,7 @@ import { categoryService } from "../../../services/categoryService";
 import { uploadProductImage } from "../../../services/productService";
 import type { Category, Product } from "../../../types/admin";
 import type { ProductInput } from "../../../services/productService";
+import Select from "../ui/Select";
 
 const emptyValues: ProductInput = {
   name: "",
@@ -79,6 +80,40 @@ export default function ProductForm({
   const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
     onDirtyChange?.(true);
+  };
+
+  const [priceText, setPriceText] = useState(String(initialValues?.price ?? emptyValues.price));
+  const [salePriceText, setSalePriceText] = useState(
+    initialValues?.salePrice != null ? String(initialValues.salePrice) : ""
+  );
+  const [stockText, setStockText] = useState(String(initialValues?.stockQuantity ?? emptyValues.stockQuantity));
+
+  // These three numeric <input>s were previously controlled directly by
+  // Number(values.price) etc. — every keystroke immediately parsed and fed
+  // the number straight back as the input's value, so typing "12." lost the
+  // trailing dot the instant it was typed (Number("12.") === 12, which
+  // redisplays as "12"), and clearing the field to type a fresh number
+  // snapped to "0" mid-edit. They now keep their own raw text while typing;
+  // a valid parse updates the real form value, but the field always shows
+  // exactly what was typed.
+  const handlePriceText = (raw: string) => {
+    setPriceText(raw);
+    const n = Number(raw);
+    if (raw.trim() !== "" && Number.isFinite(n) && n >= 0) set("price", n);
+  };
+  const handleSalePriceText = (raw: string) => {
+    setSalePriceText(raw);
+    if (raw.trim() === "") {
+      set("salePrice", null);
+      return;
+    }
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0) set("salePrice", n);
+  };
+  const handleStockText = (raw: string) => {
+    setStockText(raw);
+    const n = Number(raw);
+    if (raw.trim() !== "" && Number.isInteger(n) && n >= 0) set("stockQuantity", n);
   };
 
   const validate = () => {
@@ -182,33 +217,62 @@ export default function ProductForm({
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>{t("السعر", "Price")}</label>
-            <input type="number" min={0} value={values.price} onChange={(e) => set("price", Number(e.target.value))} className={inputClass} style={{ borderColor: errors.price ? "var(--color-error)" : "var(--color-border)" }} />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={priceText}
+              onChange={(e) => handlePriceText(e.target.value)}
+              className={inputClass}
+              style={{ borderColor: errors.price ? "var(--color-error)" : "var(--color-border)" }}
+            />
             {errors.price && <p className="text-xs mt-1" style={{ color: "var(--color-error)" }}>{errors.price}</p>}
           </div>
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>{t("سعر التخفيض", "Sale Price")}</label>
-            <input type="number" min={0} value={values.salePrice ?? ""} onChange={(e) => set("salePrice", e.target.value ? Number(e.target.value) : null)} className={inputClass} style={{ borderColor: "var(--color-border)" }} />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={salePriceText}
+              onChange={(e) => handleSalePriceText(e.target.value)}
+              className={inputClass}
+              style={{ borderColor: "var(--color-border)" }}
+            />
           </div>
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>{t("العملة", "Currency")}</label>
-            <select value={values.currency} onChange={(e) => set("currency", e.target.value)} className={inputClass} style={{ borderColor: "var(--color-border)" }}>
-              <option value="USD">USD</option>
-              <option value="SYP">SYP</option>
-            </select>
+            <Select
+              value={values.currency}
+              onChange={(v) => set("currency", v)}
+              aria-label={t("العملة", "Currency")}
+              options={[
+                { value: "USD", label: "USD" },
+                { value: "SYP", label: "SYP" },
+              ]}
+            />
           </div>
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>{t("القسم", "Category")}</label>
-            <select value={values.categoryId ?? ""} onChange={(e) => set("categoryId", e.target.value || null)} className={inputClass} style={{ borderColor: errors.categoryId ? "var(--color-error)" : "var(--color-border)" }}>
-              <option value="">{t("اختاري قسماً", "Select a category")}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{t(c.nameAr || c.name, c.name)}</option>
-              ))}
-            </select>
+            <Select
+              value={values.categoryId ?? ""}
+              onChange={(v) => set("categoryId", v || null)}
+              aria-label={t("القسم", "Category")}
+              options={[
+                { value: "", label: t("اختاري قسماً", "Select a category") },
+                ...categories.map((c) => ({ value: c.id, label: t(c.nameAr || c.name, c.name) })),
+              ]}
+            />
             {errors.categoryId && <p className="text-xs mt-1" style={{ color: "var(--color-error)" }}>{errors.categoryId}</p>}
           </div>
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>{t("الكمية المتوفرة", "Stock Quantity")}</label>
-            <input type="number" min={0} value={values.stockQuantity} onChange={(e) => set("stockQuantity", Number(e.target.value))} className={inputClass} style={{ borderColor: "var(--color-border)" }} />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={stockText}
+              onChange={(e) => handleStockText(e.target.value)}
+              className={inputClass}
+              style={{ borderColor: "var(--color-border)" }}
+            />
           </div>
           <div>
             <label className={labelClass} style={{ color: "var(--color-text)" }}>SKU</label>
@@ -280,7 +344,7 @@ export default function ProductForm({
         className={`flex gap-3 ${stickyFooter ? "sticky bottom-0 -mx-5 sm:-mx-6 px-5 sm:px-6 py-4 border-t" : ""}`}
         style={stickyFooter ? { background: "var(--color-surface)", borderColor: "var(--color-border)" } : undefined}
       >
-        <button type="submit" disabled={submitting || uploading} className="px-6 py-2.5 rounded-[var(--radius-card)] text-sm font-medium disabled:opacity-60" style={{ background: "var(--color-primary)", color: "var(--color-background)" }}>
+        <button type="submit" disabled={submitting || uploading} className="px-6 py-2.5 rounded-[var(--radius-card)] text-sm font-medium disabled:opacity-60" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
           {submitting ? t("جارِ الحفظ...", "Saving...") : submitLabel}
         </button>
         {onCancel && (

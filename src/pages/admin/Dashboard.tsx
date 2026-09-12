@@ -5,13 +5,25 @@ import { useLanguage } from "../../context/LanguageContext";
 import { productService } from "../../services/productService";
 import { categoryService } from "../../services/categoryService";
 import { orderService } from "../../services/orderService";
+import type { Order } from "../../types/admin";
+import Badge from "../../components/admin/ui/Badge";
 import EmptyState from "../../components/admin/ui/EmptyState";
+
+const statusTone: Record<Order["status"], "success" | "error" | "warning" | "neutral"> = {
+  pending: "neutral",
+  confirmed: "warning",
+  preparing: "warning",
+  ready: "success",
+  completed: "success",
+  cancelled: "error",
+};
 
 export default function Dashboard() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ total: 0, active: 0, categories: 0, orders: 0, lowStock: 0 });
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     Promise.all([productService.list(), categoryService.list(), orderService.list()])
@@ -23,6 +35,7 @@ export default function Dashboard() {
           orders: orders.length,
           lowStock: products.filter((p) => p.active && p.stockQuantity > 0 && p.stockQuantity <= 3).length,
         });
+        setRecentOrders(orders.slice(0, 5));
         setLoading(false);
       })
       .catch((err) => {
@@ -87,14 +100,33 @@ export default function Dashboard() {
           <h2 className="font-semibold text-sm mb-4" style={{ color: "var(--color-heading)" }}>
             {t("الطلبات الأخيرة", "Recent Orders")}
           </h2>
-          <EmptyState
-            icon={Clock}
-            title={t("لا توجد طلبات بعد", "No orders yet")}
-            description={t(
-              "الطلبات تتم حالياً عبر واتساب، وستظهر هنا عند تسجيلها بقاعدة البيانات.",
-              "Orders currently happen over WhatsApp — they'll appear here once recorded in the database."
-            )}
-          />
+          {loading ? (
+            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{t("جارِ التحميل...", "Loading...")}</p>
+          ) : recentOrders.length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title={t("لا توجد طلبات بعد", "No orders yet")}
+              description={t(
+                "الطلبات تتم حالياً عبر واتساب، وستظهر هنا عند تسجيلها بقاعدة البيانات.",
+                "Orders currently happen over WhatsApp — they'll appear here once recorded in the database."
+              )}
+            />
+          ) : (
+            <div className="flex flex-col divide-y" style={{ borderColor: "var(--color-border)" }}>
+              {recentOrders.map((o) => (
+                <div key={o.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--color-heading)" }}>{o.orderNumber}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--color-text-secondary)" }}>{o.customerName || "—"}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm" style={{ color: "var(--color-text)" }}>{o.currency} {o.totalAmount}</span>
+                    <Badge tone={statusTone[o.status]}>{t(o.status, o.status)}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] p-5" style={{ background: "var(--color-surface)" }}>
@@ -106,7 +138,7 @@ export default function Dashboard() {
               to="/admin/products"
               state={{ openAdd: true }}
               className="flex items-center gap-2 px-3 py-2.5 rounded-[var(--radius-card)] text-sm font-medium transition-colors"
-              style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
+              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
               <PackagePlus size={16} />
               {t("إضافة منتج جديد", "Add New Product")}

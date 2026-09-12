@@ -42,7 +42,7 @@ const categoriesCache = createListCache<Category>(async () => {
   const { data, error } = await supabase.from("categories").select("*").order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []).map(rowToCategory);
-});
+}, "wf-cache-categories");
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = slugify(base) || "category";

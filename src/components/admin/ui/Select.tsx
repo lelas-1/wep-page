@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 export interface SelectOption<T extends string> {
@@ -22,6 +23,16 @@ interface SelectProps<T extends string> {
  * CSS-controllable), so this renders both the trigger and the option list
  * ourselves, using the app's design tokens.
  *
+ * The option list is rendered through a portal into document.body,
+ * positioned from the trigger's live screen coordinates, rather than as an
+ * absolutely-positioned child of the trigger. A Select placed inside a
+ * table row (e.g. an order's status column) sits inside an ancestor with
+ * `overflow-hidden` (the table's rounded card wrapper) — an absolutely
+ * positioned child there gets silently clipped and never becomes visible.
+ * The portal escapes that entirely. The list always opens downward from
+ * the trigger — no auto-flip-upward near the bottom of the viewport,
+ * since that made a row's dropdown appear to jump unpredictably.
+ *
  * Generic over the option value type so every filter (category ids, status
  * unions, etc.) gets full type-safety without a separate component per use
  * — avoids the boolean-prop-per-variant trap in favor of one typed API.
@@ -36,32 +47,51 @@ export default function Select<T extends string>({
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
+  const [rect, setRect] = useState<{ top: number; bottom: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   const selected = options.find((o) => o.value === value);
 
   const close = useCallback(() => setOpen(false), []);
 
-  // Close on outside click / Escape. Re-subscribes only when `open`
-  // actually changes, not on every render.
+  const measure = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setRect({ top: r.top, bottom: r.bottom, left: r.left, width: r.width });
+  }, []);
+
+  // Close on outside click / Escape, and keep the portal's position in
+  // sync with the trigger while open (scrolling, resizing, etc.).
+  // Re-subscribes only when `open` actually changes, not on every render.
   useEffect(() => {
     if (!open) return;
+    measure();
 
     const onPointerDown = (e: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      close();
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
+    const onReposition = () => measure();
 
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", onReposition);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
     };
-  }, [open, close]);
+  }, [open, close, measure]);
 
   const openList = () => {
     const idx = options.findIndex((o) => o.value === value);
@@ -98,6 +128,7 @@ export default function Select<T extends string>({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => (open ? close() : openList())}
         onKeyDown={handleTriggerKeyDown}
@@ -115,44 +146,53 @@ export default function Select<T extends string>({
         />
       </button>
 
-      {open && (
-        <ul
-          ref={listRef}
-          role="listbox"
-          tabIndex={-1}
-          onKeyDown={handleListKeyDown}
-          aria-activedescendant={`select-option-${highlighted}`}
-          className="absolute z-20 mt-1.5 w-full max-h-64 overflow-y-auto rounded-[var(--radius-card)] border py-1 shadow-[var(--shadow-card)] motion-safe:animate-[fadeIn_0.15s_ease]"
-          style={{ background: "var(--color-surface)", borderColor: "var(--color-border)" }}
-        >
-          {options.map((opt, i) => {
-            const isSelected = opt.value === value;
-            const isHighlighted = i === highlighted;
-            return (
-              <li
-                key={opt.value}
-                id={`select-option-${i}`}
-                role="option"
-                aria-selected={isSelected}
-                onMouseEnter={() => setHighlighted(i)}
-                onClick={() => {
-                  onChange(opt.value);
-                  close();
-                }}
-                className="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer transition-colors"
-                style={{
-                  background: isHighlighted ? "var(--color-lavender-light)" : "transparent",
-                  color: isSelected ? "var(--color-primary)" : "var(--color-text)",
-                  fontWeight: isSelected ? 600 : 400,
-                }}
-              >
-                <span className="truncate">{opt.label}</span>
-                {isSelected && <Check size={15} className="shrink-0" />}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {open &&
+        rect &&
+        createPortal(
+          <ul
+            ref={listRef}
+            role="listbox"
+            tabIndex={-1}
+            onKeyDown={handleListKeyDown}
+            aria-activedescendant={`select-option-${highlighted}`}
+            className="fixed z-[200] max-h-64 overflow-y-auto rounded-[var(--radius-card)] border py-1 shadow-[var(--shadow-card)] motion-safe:animate-[fadeIn_0.15s_ease]"
+            style={{
+              background: "var(--color-surface)",
+              borderColor: "var(--color-border)",
+              left: rect.left,
+              width: rect.width,
+              top: rect.bottom + 6,
+            }}
+          >
+            {options.map((opt, i) => {
+              const isSelected = opt.value === value;
+              const isHighlighted = i === highlighted;
+              return (
+                <li
+                  key={opt.value}
+                  id={`select-option-${i}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setHighlighted(i)}
+                  onClick={() => {
+                    onChange(opt.value);
+                    close();
+                  }}
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer transition-colors"
+                  style={{
+                    background: isHighlighted ? "var(--color-lavender-light)" : "transparent",
+                    color: isSelected ? "var(--color-primary)" : "var(--color-text)",
+                    fontWeight: isSelected ? 600 : 400,
+                  }}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {isSelected && <Check size={15} className="shrink-0" />}
+                </li>
+              );
+            })}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }

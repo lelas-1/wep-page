@@ -59,7 +59,7 @@ export default function Topbar({ title, onMenuClick }: { title: string; onMenuCl
         </button>
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ms-1"
-          style={{ background: "var(--color-primary)", color: "var(--color-background)" }}
+          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           A
         </div>
